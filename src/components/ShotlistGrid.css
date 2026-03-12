@@ -1,0 +1,264 @@
+.shotlist-grid-wrapper {
+  padding: 40px;
+  background: var(--bg-main);
+  /* Balanced with workspace */
+  min-height: calc(100vh - 100px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: background 0.3s ease;
+}
+
+.shotlist-scroll-area {
+  width: 100%;
+  max-width: 1400px;
+  background: var(--paper-bg);
+  /* Match script paper color */
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--paper-shadow);
+  padding: 60px;
+  /* More breathable, like a real document */
+  min-height: 1000px;
+  border-radius: 4px;
+}
+
+.grid-controls {
+  width: 100%;
+  max-width: 1400px;
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.shotlist-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  border: 1.5px solid #262626; /* Neutral 800 - Technical & Strong */
+}
+
+.shotlist-table th {
+  background: var(--shotlist-header);
+  border: 1px solid var(--shotlist-border);
+  padding: 10px 4px;
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: 7.5pt;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.shotlist-table td {
+  border: 1px solid var(--shotlist-border);
+  padding: 0;
+  vertical-align: middle;
+  background: var(--paper-bg);
+  color: var(--paper-text); /* Đảm bảo text luôn rõ trên nền trắng của Shotlist */
+}
+
+.shotlist-table td.empty-cell {
+  color: var(--text-secondary);
+  opacity: 0.7;
+  font-style: italic;
+}
+.shotlist-table textarea,
+.shotlist-table select {
+  width: 100% !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: 12px !important;
+  font-family: var(--font-ui);
+  font-size: 10pt;
+  color: var(--paper-text);
+  outline: none !important;
+  resize: none !important;
+  overflow-y: hidden !important;
+  display: block !important;
+  line-height: 1.5 !important;
+  box-shadow: none !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+  text-align: center;
+}
+
+.shotlist-table select {
+  appearance: none;
+  cursor: pointer;
+  height: 100%;
+}
+
+/* Specific column widths for balance */
+.shotlist-table th:nth-child(1),
+.shotlist-table td:nth-child(1) {
+  width: 45px;
+} /* Scene */
+
+.shotlist-table th:nth-child(2),
+.shotlist-table td:nth-child(2) {
+  width: 45px;
+} /* Shot */
+
+.shotlist-table th:nth-child(3),
+.shotlist-table td:nth-child(3) {
+  width: 65px;
+} /* I/E */
+
+/* DP View specific balancing */
+.shotlist-table.dp-view th:nth-child(4),
+.shotlist-table.dp-view td:nth-child(4) {
+  width: 80px;
+} /* Card */
+
+.shotlist-table.dp-view th:nth-child(5),
+.shotlist-table.dp-view td:nth-child(5) {
+  width: 170px;
+} /* Shot Size */
+
+.shotlist-table.dp-view th:nth-child(6),
+.shotlist-table.dp-view td:nth-child(6) {
+  width: 150px;
+} /* Move */
+
+.shotlist-table.dp-view th:nth-child(7),
+.shotlist-table.dp-view td:nth-child(7) {
+  width: 80px;
+} /* Lens */
+
+.shotlist-table.dp-view th:nth-child(8),
+.shotlist-table.dp-view td:nth-child(8) {
+  width: 180px;
+} /* Angle LARGER to match Move/Size */
+
+.shotlist-table.dp-view th:nth-child(9),
+.shotlist-table.dp-view td:nth-child(9) {
+  width: 120px;
+} /* Tech Note */
+
+/* Director View specific balancing */
+.shotlist-table.director-view th:nth-child(4),
+.shotlist-table.director-view td:nth-child(4),
+.shotlist-table.director-view th:nth-child(7),
+.shotlist-table.director-view td:nth-child(7),
+.shotlist-table.director-view th:nth-child(8),
+.shotlist-table.director-view td:nth-child(8) {
+  width: 100px; /* Notes and small fields in director view */
+}
+
+/* Removido duplicatas de DP balancing se existirem */
+
+/* Premium Focus State - Matching the Slate accent of the script editor */
+.shotlist-table td:focus-within {
+  background: var(--paper-bg);
+  box-shadow: inset 0 0 0 1px var(--shotlist-border) !important;
+  z-index: 10;
+  position: relative;
+}
+
+.btn-add {
+  background: var(--accent);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-family: var(--font-ui);
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.2);
+  letter-spacing: 0.02em;
+}
+
+.btn-add:hover {
+  background: var(--accent-hov);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 15px rgba(220, 38, 38, 0.3);
+}
+
+/* Document Header Styling */
+.shotlist-document-header {
+  border-bottom: 2px solid var(--shotlist-border);
+  padding-bottom: 24px;
+  margin-bottom: 40px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+.doc-title {
+  font-family: var(--font-ui);
+  font-size: 28pt;
+  font-weight: 900;
+  color: var(--paper-text); /* Always dark on white paper */
+  letter-spacing: -0.03em;
+}
+
+.doc-meta {
+  text-align: right;
+  font-family: var(--font-ui);
+  font-size: 9.5pt;
+  line-height: 1.8;
+  color: var(--paper-text);
+  opacity: 0.8;
+}
+
+.meta-field {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
+}
+
+.meta-field textarea {
+  border: none;
+  border-bottom: 1px solid rgba(0,0,0,0.1);
+  background: transparent;
+  padding: 4px 8px;
+  font-family: var(--font-ui);
+  font-size: 10pt;
+  font-weight: 500;
+  color: var(--paper-text);
+  outline: none;
+  text-align: left;
+  min-width: 300px;
+  max-width: 500px;
+  transition: all 0.2s;
+  resize: none;
+  overflow: hidden;
+  display: block;
+  line-height: 1.4;
+}
+
+.meta-field textarea:focus {
+  border-bottom-color: var(--accent);
+  background: rgba(220, 38, 38, 0.02);
+}
+
+@media print {
+  .no-print {
+    display: none;
+  }
+
+  .grid-controls {
+    display: none;
+  }
+
+  .shotlist-grid-wrapper {
+    padding: 0;
+    background: #fff;
+  }
+
+  .shotlist-scroll-area {
+    box-shadow: none;
+    border: none;
+    padding: 0;
+    width: 100%;
+    max-width: none;
+  }
+
+  .meta-field input {
+    border-bottom: none;
+  }
+}

@@ -1,0 +1,364 @@
+/* 
+   MASTER MODAL CSS - VERSION 4.1
+   - Fix Font Force (Tất cả thành phần)
+   - Landscape View (820px)
+   - Premium Glassmorphism
+*/
+
+/* Ép font cho toàn bộ Modal áp dụng lên tất cả các tags */
+.modal-overlay, 
+.modal-overlay *,
+.modal-overlay button,
+.modal-overlay input,
+.modal-overlay select,
+.modal-overlay textarea {
+  font-family: var(--font-ui), 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+}
+
+.modal-overlay {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  background: rgba(0, 0, 0, 0.45) !important;
+  backdrop-filter: blur(12px) !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  z-index: 99999 !important;
+  padding: 20px;
+  padding: 20px;
+}
+
+.modal-content {
+  width: 100%;
+  max-width: 820px; /* Khổ ngang Pro */
+  background: var(--bg-sidebar);
+  border: 1px solid var(--glass-border);
+  border-radius: 24px;
+  box-shadow: 0 50px 100px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.3s ease;
+}
+
+.secondary-icon {
+  color: var(--text-secondary);
+}
+.modal-header {
+  padding: 24px 40px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--glass-border);
+  background: rgba(255, 255, 255, 0.01);
+}
+
+.modal-header-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  line-height: 1; /* Cố định line-height để icon và chữ cân đối */
+}
+
+.modal-header-title h2 {
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.modal-close-btn {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 12px;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-close-btn:hover {
+  background: #ef4444;
+  color: white;
+  border-color: #ef4444;
+}
+
+/* Body & Wide Grid */
+.modal-body {
+  padding: 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 40px; /* Khôi phục khoảng cách chuẩn */
+  overflow-y: auto;
+}
+
+.modal-section {
+  display: grid;
+  grid-template-columns: 1.25fr 1fr; /* Cân đối Landscape */
+  gap: 48px;
+  align-items: center;
+}
+
+.section-info {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.section-title-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.section-info h3 {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.section-info p {
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.section-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Sync List */
+.modal-sync-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.03);
+  border-radius: 16px;
+  border: 1px solid var(--glass-border);
+}
+
+.modal-sync-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.modal-sync-icon {
+  color: var(--accent);
+  font-weight: 900;
+}
+
+/* Buttons - Khắc phục Font & Style */
+.modal-btn {
+  width: 100%;
+  padding: 18px 24px;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 16px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 8px 20px rgba(220, 38, 38, 0.25);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.modal-btn:hover {
+  background: var(--accent-hov);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(220, 38, 38, 0.4);
+}
+
+.modal-btn.minimal {
+  background: var(--text-primary);
+  color: var(--bg-sidebar);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.modal-btn.minimal:hover {
+  background: var(--text-secondary);
+  color: var(--text-primary);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+}
+
+.modal-btn:active { transform: scale(0.98); }
+
+.modal-btn-label {
+  font-weight: 800;
+  font-size: 1.05rem;
+  display: block;
+}
+
+.modal-btn-meta {
+  font-size: 0.8rem;
+  opacity: 0.8;
+  font-weight: 500;
+}
+
+.modal-btn.secondary {
+  background: var(--glass-bg);
+  color: var(--text-primary);
+  border: 1.5px solid var(--glass-border);
+  box-shadow: none;
+  font-weight: 700;
+  text-align: center;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+}
+
+.modal-btn.secondary:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--text-secondary);
+}
+
+/* Input Wide */
+.tech-input {
+  width: 100%;
+  padding: 18px 22px;
+  background: var(--paper-bg);
+  border: 2px solid var(--glass-border);
+  border-radius: 16px;
+  color: var(--paper-text); /* Ép chữ tối khi trên nền trắng */
+  font-size: 1.1rem;
+  font-weight: 700;
+  transition: all 0.25s;
+}
+
+.tech-input:focus {
+  border-color: var(--text-secondary);
+  outline: none;
+  box-shadow: 0 0 0 4px rgba(148, 163, 184, 0.15); /* Slate 400 shadow */
+}
+
+/* Footer */
+.modal-footer {
+  padding: 24px 40px;
+  background: rgba(0, 0, 0, 0.02);
+  border-top: 1px solid var(--glass-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.footer-tip {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+/* Animations & Responsive */
+@media (max-width: 768px) {
+  .modal-section { grid-template-columns: 1fr; }
+  .modal-footer { flex-direction: column; gap: 16px; }
+  .modal-btn.secondary { width: 100%; }
+}
+
+/* Reset Modal Specific Landscape Grid */
+.reset-main-grid {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 60px !important;
+  padding: 40px !important;
+}
+
+.reset-column {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between; /* Đẩy nội dung action xuống đáy để cân đối chiều cao */
+  gap: 32px;
+}
+
+.section-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: auto; /* Tự động đẩy phần action xuống dưới cùng */
+}
+
+/* Tối ưu Dark Mode cực hạn */
+.dark-theme .modal-content {
+  background: #1c1917 !important; /* Neutral 900 cho độ sâu tuyệt đối */
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 50px 100px rgba(0, 0, 0, 0.8) !important;
+}
+
+.dark-theme .modal-header,
+.dark-theme .modal-footer {
+  background: rgba(255, 255, 255, 0.03) !important;
+}
+
+.dark-theme .section-info h3,
+.dark-theme .modal-header-title h2 {
+  color: #f8fafc !important; /* Slate 50 cho độ trắng sạch */
+}
+
+.dark-theme .section-info p,
+.dark-theme .footer-tip {
+  color: #94a3b8 !important; /* Slate 400 cho văn bản phụ */
+}
+
+.dark-theme .modal-btn.secondary {
+  background: rgba(255, 255, 255, 0.05) !important;
+  color: #e2e8f0 !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.dark-theme .modal-btn.secondary:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-color: var(--text-secondary) !important;
+  color: #f8fafc !important;
+}
+
+.dark-theme .modal-btn.minimal {
+  background: #f8fafc !important;
+  color: #171717 !important;
+}
+
+.dark-theme .modal-btn.minimal:hover {
+  background: #cbd5e1 !important;
+}
+
+.dark-theme .tech-input {
+  background: #000000 !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  color: #f8fafc !important; /* Chữ trắng trên nền đen */
+}
+
+.dark-theme .tech-input:focus {
+  border-color: #64748b !important; /* Slate 500 */
+  box-shadow: 0 0 0 4px rgba(100, 116, 139, 0.2) !important;
+  background: #0a0a0a !important;
+}
+
+.dark-theme .modal-sync-list {
+  background: rgba(0, 0, 0, 0.2) !important;
+  border-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+.dark-theme .modal-sync-item {
+  color: #cbd5e1 !important;
+}
+
+@keyframes modalFadeIn { from { opacity: 0; } to { opacity: 1; } }
