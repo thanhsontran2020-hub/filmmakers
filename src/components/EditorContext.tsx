@@ -21,7 +21,6 @@ export interface Shot {
   id: string;
   scene: string;
   shot: string;
-  roll: string;
   memoryCard: string;
   size: string;
   movement: string;
@@ -32,13 +31,20 @@ export interface Shot {
   actorAction: string;
   dayNight: string;
   techNotes: string;
-  sceneNotes: string;
   scriptNotes: string;
+  fov: string;
+  duration: string;
+  actors: string;
+  framerate: string;
 }
 
-interface HistoryState {
+interface ScriptHistoryState {
   blocks: ScriptBlock[];
   activeBlockIndex: number;
+}
+
+interface ShotlistHistoryState {
+  shotlist: Shot[];
 }
 
 interface ProjectData {
@@ -55,6 +61,9 @@ interface ProjectData {
   shotlistProjectName: string;
   shotlistDirector: string;
   shotlistDate: string;
+  lenses: string[];
+  shotlistLocations: string[];
+  shotlistActors: string[];
 }
 
 interface EditorContextType {
@@ -62,10 +71,12 @@ interface EditorContextType {
   updateProjectName: (name: string) => void;
   updateLogline: (logline: string) => void;
   updateAuthor: (author: string) => void;
-  updateScriptBlocks: (blocks: ScriptBlock[]) => void;
+  updateScriptBlocks: (blocks: ScriptBlock[], options?: { skipHistory?: boolean, forceHistory?: boolean }) => void;
   addBlock: (index: number, type: BlockType, content?: string) => void;
   removeBlock: (index: number) => void;
+  removeScene: (index: number) => void;
   updateBlock: (index: number, content: string, type?: BlockType) => void;
+  updateShot: (rowIndex: number, colKey: keyof Shot, value: string) => void;
   addCharacter: (char: { name: string; age: string }) => void;
   removeCharacter: (id: string) => void;
   addLocation: (name: string) => void;
@@ -76,7 +87,6 @@ interface EditorContextType {
   redo: () => void;
   shotlist: Shot[];
   setShotlist: (shotlist: Shot[]) => void;
-  updateShotlist: (shotlist: Shot[]) => void; // Legacy
   activeTab: string;
   setActiveTab: (tab: string) => void;
   shotlistView: 'director' | 'dp';
@@ -105,6 +115,22 @@ interface EditorContextType {
   resetFullShotlist: () => void;
   importFullProject: (data: Partial<ProjectData>) => void;
   importShotlist: (shotlist: Shot[]) => void;
+  scanCharacters: () => void;
+  scanLocations: () => void;
+  removeShot: (index: number) => void;
+  insertShot: (index: number, isNewScene: boolean) => void;
+  clearShotRow: (index: number) => void;
+  moveBlockUp: (index: number) => void;
+  moveBlockDown: (index: number) => void;
+  addLens: (name: string) => void;
+  removeLens: (name: string) => void;
+  clearLenses: () => void;
+    addShotlistLocation: (name: string) => void;
+    removeShotlistLocation: (name: string) => void;
+    clearShotlistLocations: () => void;
+    addShotlistActor: (name: string) => void;
+    removeShotlistActor: (name: string) => void;
+    clearShotlistActors: () => void;
 }
 
 const EditorContext = createContext<EditorContextType | undefined>(undefined);
@@ -119,8 +145,10 @@ export const EditorProvider = ({ children }: { children: ReactNode }) => {
   const [activeBlockIndex, setActiveBlockIndex] = useState(0);
   const [selectedIndices, setSelectedIndices] = useState<number[]>([]);
   const [clipboard, setClipboard] = useState<ScriptBlock[]>([]);
-  const [history, setHistory] = useState<HistoryState[]>([]);
-  const [redoStack, setRedoStack] = useState<HistoryState[]>([]);
+  const [scriptHistory, setScriptHistory] = useState<ScriptHistoryState[]>([]);
+  const [scriptRedoStack, setScriptRedoStack] = useState<ScriptHistoryState[]>([]);
+  const [shotlistHistory, setShotlistHistory] = useState<ShotlistHistoryState[]>([]);
+  const [shotlistRedoStack, setShotlistRedoStack] = useState<ShotlistHistoryState[]>([]);
   const [historyTimer, setHistoryTimer] = useState<NodeJS.Timeout | null>(null);
 
   const [project, setProject] = useState<ProjectData>(() => {
@@ -130,8 +158,8 @@ export const EditorProvider = ({ children }: { children: ReactNode }) => {
         const parsed = JSON.parse(saved);
         return {
           id: parsed.id || Math.random().toString(36).substr(2, 9),
-          projectName: parsed.projectName || parsed.title || 'Kịch bản chưa đặt tên',
-          title: parsed.title || parsed.projectName || 'Kịch bản chưa đặt tên',
+          projectName: parsed.projectName ?? parsed.title ?? '',
+          title: parsed.title ?? parsed.projectName ?? '',
           author: parsed.author || '',
           logline: parsed.logline || '',
           currentScript: parsed.currentScript || '',
@@ -141,7 +169,10 @@ export const EditorProvider = ({ children }: { children: ReactNode }) => {
           shotlist: parsed.shotlist || [],
           shotlistProjectName: parsed.shotlistProjectName || '',
           shotlistDirector: parsed.shotlistDirector || '',
-          shotlistDate: parsed.shotlistDate || ''
+          shotlistDate: parsed.shotlistDate || '',
+          lenses: parsed.lenses || [],
+          shotlistLocations: parsed.shotlistLocations || [],
+          shotlistActors: parsed.shotlistActors || []
         };
       } catch (e) {
         console.error("Lỗi parse dữ liệu cũ:", e);
@@ -149,8 +180,8 @@ export const EditorProvider = ({ children }: { children: ReactNode }) => {
     }
     return {
       id: Math.random().toString(36).substr(2, 9),
-      projectName: 'Kịch bản chưa đặt tên',
-      title: 'Kịch bản chưa đặt tên',
+      projectName: '',
+      title: '',
       author: '',
       logline: '',
       currentScript: '',
@@ -160,7 +191,10 @@ export const EditorProvider = ({ children }: { children: ReactNode }) => {
       shotlist: [],
       shotlistProjectName: '',
       shotlistDirector: '',
-      shotlistDate: ''
+      shotlistDate: '',
+      lenses: [],
+      shotlistLocations: [],
+      shotlistActors: []
     };
   });
 
@@ -197,20 +231,56 @@ export const EditorProvider = ({ children }: { children: ReactNode }) => {
     setProject(prev => ({ ...prev, shotlistDate: date }));
   };
 
-  const pushToHistory = (blocks: ScriptBlock[], activeIdx: number) => {
-    // Deep clone to ensure no references persist
-    const snapshot = JSON.parse(JSON.stringify(blocks));
-    setHistory(prev => [...prev.slice(-49), { blocks: snapshot, activeBlockIndex: activeIdx }]); 
-    setRedoStack([]);
+  const pushScriptHistory = (blocks: ScriptBlock[], activeIdx: number) => {
+    if (historyTimer) {
+      clearTimeout(historyTimer);
+      setHistoryTimer(null);
+    }
+    const snapshotBlocks = JSON.parse(JSON.stringify(blocks));
+    setScriptHistory(prev => {
+      const last = prev[prev.length - 1];
+      if (last && JSON.stringify(last.blocks) === JSON.stringify(snapshotBlocks)) return prev;
+      return [...prev.slice(-299), { blocks: snapshotBlocks, activeBlockIndex: activeIdx }];
+    });
+    setScriptRedoStack([]);
+  };
+
+  const pushShotlistHistory = (shotlist: Shot[]) => {
+    if (historyTimer) {
+      clearTimeout(historyTimer);
+      setHistoryTimer(null);
+    }
+    const snapshotShotlist = JSON.parse(JSON.stringify(shotlist));
+    setShotlistHistory(prev => {
+      const last = prev[prev.length - 1];
+      if (last && JSON.stringify(last.shotlist) === JSON.stringify(snapshotShotlist)) return prev;
+      return [...prev.slice(-299), { shotlist: snapshotShotlist }];
+    });
+    setShotlistRedoStack([]);
   };
 
   const updateScriptBlocks = (scriptBlocks: ScriptBlock[], options: { skipHistory?: boolean, forceHistory?: boolean } = {}) => {
     if (!options.skipHistory && options.forceHistory) {
-      pushToHistory(project.scriptBlocks, activeBlockIndex);
+      pushScriptHistory(project.scriptBlocks, activeBlockIndex);
     }
-    
+
+    // Auto-fix misidentified blocks
+    const headingRegex = /^([0-9]+[.\-\s\)]*\s*)?(INT|EXT|I\/E|CẢNH|PHÂN CẢNH|SCENE|HỒI|TAP|TẬP)(\.|\s|\/)/i;
+    const fixedBlocks = scriptBlocks.map(block => {
+      // Strip HTML for regex detection
+      const textOnly = block.content.replace(/<[^>]*>/g, '').trim();
+      
+      if (headingRegex.test(textOnly) && block.type !== 'scene') {
+        return { ...block, type: 'scene' as BlockType };
+      }
+      if (textOnly.startsWith('(') && textOnly.endsWith(')') && block.type !== 'parenthetical') {
+        return { ...block, type: 'parenthetical' as BlockType };
+      }
+      return block;
+    });
+
     // Auto-update currentScript (Legacy support for RAW text users)
-    const rawText = scriptBlocks.map(b => {
+    const rawText = fixedBlocks.map(b => {
       let indent = 0;
       if (b.type === 'character') indent = 35;
       else if (b.type === 'parenthetical') indent = 28;
@@ -218,27 +288,53 @@ export const EditorProvider = ({ children }: { children: ReactNode }) => {
       else if (b.type === 'transition') indent = 45;
       return ' '.repeat(indent) + b.content;
     }).join('\n');
-    
-    setProject(prev => ({ ...prev, scriptBlocks, currentScript: rawText }));
+
+    setProject(prev => ({ ...prev, scriptBlocks: fixedBlocks, currentScript: rawText }));
   };
 
   const undo = useCallback(() => {
-    if (history.length === 0) return;
-    const previousState = history[history.length - 1];
-    setRedoStack(prev => [{ blocks: JSON.parse(JSON.stringify(project.scriptBlocks)), activeBlockIndex }, ...prev]);
-    setHistory(prev => prev.slice(0, -1));
-    updateScriptBlocks(previousState.blocks, { skipHistory: true });
-    setActiveBlockIndex(previousState.activeBlockIndex);
-  }, [history, project.scriptBlocks, activeBlockIndex]);
+    if (historyTimer) {
+      clearTimeout(historyTimer);
+      setHistoryTimer(null);
+    }
+
+    if (activeTab === 'script') {
+      if (scriptHistory.length === 0) return;
+      const prev = scriptHistory[scriptHistory.length - 1];
+      setScriptRedoStack(rs => [{ blocks: JSON.parse(JSON.stringify(project.scriptBlocks)), activeBlockIndex }, ...rs]);
+      setScriptHistory(h => h.slice(0, -1));
+      updateScriptBlocks(prev.blocks, { skipHistory: true });
+      setActiveBlockIndex(prev.activeBlockIndex);
+    } else {
+      if (shotlistHistory.length === 0) return;
+      const prev = shotlistHistory[shotlistHistory.length - 1];
+      setShotlistRedoStack(rs => [{ shotlist: JSON.parse(JSON.stringify(project.shotlist)) }, ...rs]);
+      setShotlistHistory(h => h.slice(0, -1));
+      setProject(p => ({ ...p, shotlist: prev.shotlist }));
+    }
+  }, [activeTab, scriptHistory, shotlistHistory, project.scriptBlocks, project.shotlist, activeBlockIndex]);
 
   const redo = useCallback(() => {
-    if (redoStack.length === 0) return;
-    const nextState = redoStack[0];
-    setHistory(prev => [...prev, { blocks: JSON.parse(JSON.stringify(project.scriptBlocks)), activeBlockIndex }]);
-    setRedoStack(prev => prev.slice(1));
-    updateScriptBlocks(nextState.blocks, { skipHistory: true });
-    setActiveBlockIndex(nextState.activeBlockIndex);
-  }, [redoStack, project.scriptBlocks, activeBlockIndex]);
+    if (historyTimer) {
+      clearTimeout(historyTimer);
+      setHistoryTimer(null);
+    }
+
+    if (activeTab === 'script') {
+      if (scriptRedoStack.length === 0) return;
+      const next = scriptRedoStack[0];
+      setScriptHistory(h => [...h, { blocks: JSON.parse(JSON.stringify(project.scriptBlocks)), activeBlockIndex }]);
+      setScriptRedoStack(rs => rs.slice(1));
+      updateScriptBlocks(next.blocks, { skipHistory: true });
+      setActiveBlockIndex(next.activeBlockIndex);
+    } else {
+      if (shotlistRedoStack.length === 0) return;
+      const next = shotlistRedoStack[0];
+      setShotlistHistory(h => [...h, { shotlist: JSON.parse(JSON.stringify(project.shotlist)) }]);
+      setShotlistRedoStack(rs => rs.slice(1));
+      setProject(p => ({ ...p, shotlist: next.shotlist }));
+    }
+  }, [activeTab, scriptRedoStack, shotlistRedoStack, project.scriptBlocks, project.shotlist, activeBlockIndex]);
 
   const addBlock = useCallback((index: number, type: BlockType, content: string = '') => {
     const newBlock: ScriptBlock = {
@@ -254,7 +350,7 @@ export const EditorProvider = ({ children }: { children: ReactNode }) => {
   }, [project.scriptBlocks]);
 
   const removeBlock = (index: number) => {
-    pushToHistory(project.scriptBlocks, activeBlockIndex);
+    pushScriptHistory(project.scriptBlocks, activeBlockIndex);
     if (project.scriptBlocks.length <= 1) {
       updateBlock(0, '', 'action');
       return;
@@ -264,30 +360,75 @@ export const EditorProvider = ({ children }: { children: ReactNode }) => {
     setActiveBlockIndex(Math.max(0, index - 1));
   };
 
+  const removeScene = (index: number) => {
+    pushScriptHistory(project.scriptBlocks, activeBlockIndex);
+    const blocks = project.scriptBlocks;
+    if (index < 0 || index >= blocks.length) return;
+
+    // Find the end of this scene
+    let nextSceneIndex = index + 1;
+    while (nextSceneIndex < blocks.length && blocks[nextSceneIndex].type !== 'scene') {
+      nextSceneIndex++;
+    }
+
+    const newBlocks = blocks.filter((_, i) => i < index || i >= nextSceneIndex);
+
+    if (newBlocks.length === 0) {
+      const defaultBlocks: ScriptBlock[] = [{ id: Math.random().toString(36).substr(2, 9), type: 'scene', content: '' }];
+      updateScriptBlocks(defaultBlocks, { skipHistory: true });
+      setActiveBlockIndex(0);
+    } else {
+      updateScriptBlocks(newBlocks, { skipHistory: true });
+      setActiveBlockIndex(Math.max(0, index - 1));
+    }
+  };
+
+  // Global Keyboard Shortcuts (Undo/Redo)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const isZ = e.key.toLowerCase() === 'z';
+      const isY = e.key.toLowerCase() === 'y';
+      const isShift = e.shiftKey;
+      const isCtrl = e.ctrlKey || e.metaKey;
+
+      if (isCtrl && isZ) {
+        e.preventDefault();
+        if (isShift) redo();
+        else undo();
+      } else if (isCtrl && isY) {
+        e.preventDefault();
+        redo();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [undo, redo]);
+
   const updateBlock = (index: number, content: string, type?: BlockType) => {
     const newBlocks = [...project.scriptBlocks];
     if (newBlocks[index]) {
       const isTypeChange = type && type !== newBlocks[index].type;
-      
+
       if (isTypeChange) {
-        if (historyTimer) clearTimeout(historyTimer);
-        pushToHistory(project.scriptBlocks, activeBlockIndex);
+        pushScriptHistory(project.scriptBlocks, activeBlockIndex);
       } else {
-        // Debounce text changes
-        if (historyTimer) clearTimeout(historyTimer);
-        const timer = setTimeout(() => {
-          pushToHistory(project.scriptBlocks, activeBlockIndex);
-          setHistoryTimer(null);
-        }, 1000); // 1 second debounce
-        setHistoryTimer(timer);
+        // Every 500ms of active typing creates a new undo-able checkpoint
+        if (!historyTimer) {
+          pushScriptHistory(project.scriptBlocks, activeBlockIndex);
+          const timer = setTimeout(() => {
+            setHistoryTimer(null);
+          }, 500); 
+          setHistoryTimer(timer);
+        }
       }
 
-      newBlocks[index] = { 
-        ...newBlocks[index], 
+      newBlocks[index] = {
+        ...newBlocks[index],
         content,
-        type: type || newBlocks[index].type 
+        type: type || newBlocks[index].type
       };
-      
+
       updateScriptBlocks(newBlocks, { skipHistory: true });
     }
   };
@@ -320,6 +461,42 @@ export const EditorProvider = ({ children }: { children: ReactNode }) => {
     }));
   };
 
+  const addLens = (name: string) => {
+    setProject(prev => ({ ...prev, lenses: [...(prev.lenses || []), name] }));
+  };
+
+  const removeLens = (name: string) => {
+    setProject(prev => ({ ...prev, lenses: (prev.lenses || []).filter(l => l !== name) }));
+  };
+
+  const clearLenses = () => {
+    setProject(prev => ({ ...prev, lenses: [] }));
+  };
+
+  const addShotlistLocation = (name: string) => {
+    setProject(prev => ({ ...prev, shotlistLocations: [...(prev.shotlistLocations || []), name] }));
+  };
+
+  const removeShotlistLocation = (name: string) => {
+    setProject(prev => ({ ...prev, shotlistLocations: (prev.shotlistLocations || []).filter(l => l !== name) }));
+  };
+
+  const clearShotlistLocations = () => {
+    setProject(prev => ({ ...prev, shotlistLocations: [] }));
+  };
+
+  const addShotlistActor = (name: string) => {
+    setProject(prev => ({ ...prev, shotlistActors: [...(prev.shotlistActors || []), name] }));
+  };
+
+  const removeShotlistActor = (name: string) => {
+    setProject(prev => ({ ...prev, shotlistActors: (prev.shotlistActors || []).filter(a => a !== name) }));
+  };
+
+  const clearShotlistActors = () => {
+    setProject(prev => ({ ...prev, shotlistActors: [] }));
+  };
+
   const insertElement = (type: string, name?: string) => {
     let index = activeBlockIndex;
     let blockType: BlockType = 'action';
@@ -346,7 +523,7 @@ export const EditorProvider = ({ children }: { children: ReactNode }) => {
         if (text.includes(' - NGÀY')) text = text.replace(' - NGÀY', ' - ĐÊM');
         else if (text.includes(' - ĐÊM')) text = text.replace(' - ĐÊM', ' - NGÀY');
         else text = text + ' - NGÀY';
-        
+
         updateBlock(index, text, 'scene');
         return;
       }
@@ -359,7 +536,7 @@ export const EditorProvider = ({ children }: { children: ReactNode }) => {
         if (text.startsWith('INT.')) prefix = 'INT. ';
         else if (text.startsWith('EXT.')) prefix = 'EXT. ';
         else prefix = 'INT. '; // Default if neither
-        
+
         // Remove existing time suffix if present to update just the location
         let locationPart = text.replace('INT.', '').replace('EXT.', '').trim();
         if (locationPart.includes(' - ')) {
@@ -377,7 +554,7 @@ export const EditorProvider = ({ children }: { children: ReactNode }) => {
       content = (name || '').toUpperCase();
     } else if (type === 'parenthetical') {
       blockType = 'parenthetical';
-      content = name ? `(${name})` : '()';
+      content = '()';
     } else if (type === 'dialogue') {
       blockType = 'dialogue';
     } else if (type === 'transition') {
@@ -421,7 +598,7 @@ export const EditorProvider = ({ children }: { children: ReactNode }) => {
 
   const pasteBlocks = useCallback((atIndex: number) => {
     if (clipboard.length === 0) return;
-    pushToHistory(project.scriptBlocks, activeBlockIndex);
+    pushScriptHistory(project.scriptBlocks, activeBlockIndex);
     const newBlocks = [...project.scriptBlocks];
     const pasteItems = clipboard.map(b => ({ ...b, id: Math.random().toString(36).substr(2, 9) }));
     newBlocks.splice(atIndex + 1, 0, ...pasteItems);
@@ -430,7 +607,7 @@ export const EditorProvider = ({ children }: { children: ReactNode }) => {
   }, [clipboard, project.scriptBlocks, activeBlockIndex]);
 
   const deleteSelectedBlocks = useCallback(() => {
-    pushToHistory(project.scriptBlocks, activeBlockIndex);
+    pushScriptHistory(project.scriptBlocks, activeBlockIndex);
     const indicesToRemove = selectedIndices.length > 0 ? selectedIndices : [activeBlockIndex];
     if (indicesToRemove.length === project.scriptBlocks.length) {
       updateScriptBlocks(DEFAULT_BLOCKS, { skipHistory: true });
@@ -444,20 +621,91 @@ export const EditorProvider = ({ children }: { children: ReactNode }) => {
     setActiveBlockIndex(Math.max(0, Math.min(...indicesToRemove) - 1));
   }, [selectedIndices, activeBlockIndex, project.scriptBlocks]);
 
+  const moveBlockUp = (index: number) => {
+    if (index <= 0) return;
+    pushScriptHistory(project.scriptBlocks, activeBlockIndex);
+    const newBlocks = [...project.scriptBlocks];
+    const temp = newBlocks[index];
+    newBlocks[index] = newBlocks[index - 1];
+    newBlocks[index - 1] = temp;
+    updateScriptBlocks(newBlocks, { skipHistory: true });
+    setActiveBlockIndex(index - 1);
+  };
+
+  const moveBlockDown = (index: number) => {
+    if (index >= project.scriptBlocks.length - 1) return;
+    pushScriptHistory(project.scriptBlocks, activeBlockIndex);
+    const newBlocks = [...project.scriptBlocks];
+    const temp = newBlocks[index];
+    newBlocks[index] = newBlocks[index + 1];
+    newBlocks[index + 1] = temp;
+    updateScriptBlocks(newBlocks, { skipHistory: true });
+    setActiveBlockIndex(index + 1);
+  };
+
   const clearSelection = () => setSelectedIndices([]);
 
   const setShotlist = (shotlist: Shot[]) => {
     setProject(prev => ({ ...prev, shotlist }));
   };
 
+  const renumberShotlist = (list: Shot[]): Shot[] => {
+    let currentSceneNum = 0;
+    let lastOriginalScene = "";
+    let currentShotNum = 0;
+
+    return list.map((item) => {
+      // Create a fresh copy to avoid mutation
+      const newItem = { ...item };
+
+      if (newItem.scene !== lastOriginalScene) {
+        currentSceneNum++;
+        currentShotNum = 1;
+        lastOriginalScene = newItem.scene;
+      } else {
+        currentShotNum++;
+      }
+
+      newItem.scene = currentSceneNum.toString();
+      newItem.shot = currentShotNum.toString();
+      return newItem;
+    });
+  };
+
+  const updateShot = (rowIndex: number, colKey: keyof Shot, value: string) => {
+    const list = [...project.shotlist];
+    if (list[rowIndex]) {
+      // Immediate push for structural/select changes? 
+      // size, movement, angle, dayNight, fov, framerate are selects
+      const isSelectField = ['size', 'movement', 'angle', 'dayNight', 'fov', 'framerate'].includes(colKey);
+
+      if (isSelectField) {
+        pushShotlistHistory(project.shotlist);
+      } else {
+        // Debounce for granular undo: Capture clean state, then pause for 500ms
+        if (!historyTimer) {
+          pushShotlistHistory(project.shotlist);
+          const timer = setTimeout(() => {
+            setHistoryTimer(null);
+          }, 500);
+          setHistoryTimer(timer);
+        }
+      }
+
+      list[rowIndex] = { ...list[rowIndex], [colKey]: value };
+      setShotlist(list);
+    }
+  };
+
   const addShot = useCallback(() => {
+    pushShotlistHistory(project.shotlist);
     const list = project.shotlist;
     const lastShot = list[list.length - 1];
+
     const newShot: Shot = {
-      id: Math.random().toString(36).substr(2, 9),
+      id: crypto.randomUUID(),
       scene: lastShot?.scene || '1',
       shot: lastShot ? (parseInt(lastShot.shot) + 1).toString() : '1',
-      roll: 'A',
       memoryCard: lastShot?.memoryCard || '',
       size: '',
       movement: '',
@@ -466,23 +714,100 @@ export const EditorProvider = ({ children }: { children: ReactNode }) => {
       location: lastShot?.location || '',
       content: '',
       actorAction: '',
-      dayNight: 'INT',
+      dayNight: '',
       techNotes: '',
-      sceneNotes: '',
-      scriptNotes: ''
+      scriptNotes: '',
+      fov: '',
+      duration: '',
+      actors: '',
+      framerate: ''
     };
-    setShotlist([...list, newShot]);
+
+    setShotlist(renumberShotlist([...list, newShot]));
   }, [project.shotlist]);
 
   const addScene = useCallback(() => {
+    pushShotlistHistory(project.shotlist);
     const list = project.shotlist;
     const lastShot = list[list.length - 1];
-    const newSceneNum = lastShot ? (parseInt(lastShot.scene) + 1).toString() : '1';
+    const nextSceneNum = lastShot ? (parseInt(lastShot.scene) + 1).toString() : '1';
+
     const newShot: Shot = {
-      id: Math.random().toString(36).substr(2, 9),
-      scene: newSceneNum,
+      id: crypto.randomUUID(),
+      scene: nextSceneNum,
       shot: '1',
-      roll: 'A',
+      memoryCard: '',
+      size: '',
+      movement: '',
+      lens: '',
+      angle: '',
+      location: '',
+      content: '',
+      actorAction: '',
+      dayNight: '',
+      techNotes: '',
+      scriptNotes: '',
+      fov: '',
+      duration: '',
+      actors: '',
+      framerate: ''
+    };
+
+    setShotlist(renumberShotlist([...list, newShot]));
+  }, [project.shotlist]);
+
+  const removeShot = useCallback((index: number) => {
+    pushShotlistHistory(project.shotlist);
+    const list = [...project.shotlist];
+    if (list.length === 0 || index < 0 || index >= list.length) return;
+
+    list.splice(index, 1);
+    setShotlist(renumberShotlist(list));
+  }, [project.shotlist]);
+
+  const insertShot = useCallback((index: number, isNewScene: boolean) => {
+    pushShotlistHistory(project.shotlist);
+    const list = [...project.shotlist];
+    const prevShot = list[index];
+
+    const newShot: Shot = {
+      id: crypto.randomUUID(),
+      scene: isNewScene ? `NEW_SCENE_${crypto.randomUUID()}` : (prevShot?.scene || '1'),
+      shot: '0', // Will be renumbered
+      memoryCard: prevShot?.memoryCard || '',
+      size: '',
+      movement: '',
+      lens: '',
+      angle: '',
+      location: isNewScene ? '' : (prevShot?.location || ''),
+      content: '',
+      actorAction: '',
+      dayNight: '',
+      techNotes: '',
+      scriptNotes: '',
+      fov: '',
+      duration: '',
+      actors: '',
+      framerate: ''
+    };
+
+    list.splice(index + 1, 0, newShot);
+    setShotlist(renumberShotlist(list));
+  }, [project.shotlist]);
+
+  const clearShotRow = useCallback((index: number) => {
+    pushShotlistHistory(project.shotlist);
+    const list = [...project.shotlist];
+    if (!list[index]) return;
+
+    const originalId = list[index].id;
+    const originalScene = list[index].scene;
+    const originalShot = list[index].shot;
+
+    list[index] = {
+      id: originalId,
+      scene: originalScene,
+      shot: originalShot,
       memoryCard: '',
       size: '',
       movement: '',
@@ -493,10 +818,14 @@ export const EditorProvider = ({ children }: { children: ReactNode }) => {
       actorAction: '',
       dayNight: 'INT',
       techNotes: '',
-      sceneNotes: '',
-      scriptNotes: ''
+      scriptNotes: '',
+      fov: '',
+      duration: '',
+      actors: '',
+      framerate: '24'
     };
-    setShotlist([...list, newShot]);
+
+    setShotlist(list);
   }, [project.shotlist]);
 
   const clearCharacters = () => {
@@ -516,8 +845,8 @@ export const EditorProvider = ({ children }: { children: ReactNode }) => {
     setProject(prev => ({
       ...prev,
       id: Math.random().toString(36).substr(2, 9),
-      projectName: 'Kịch bản chưa đặt tên',
-      title: 'Kịch bản chưa đặt tên',
+      projectName: '',
+      title: '',
       author: '',
       logline: '',
       scriptBlocks: DEFAULT_BLOCKS,
@@ -533,22 +862,25 @@ export const EditorProvider = ({ children }: { children: ReactNode }) => {
       if (view === 'director') {
         return {
           ...shot,
+          location: '',
+          actors: '',
+          fov: '',
+          duration: '',
           content: '',
           actorAction: '',
-          sceneNotes: '',
-          scriptNotes: '',
-          location: '',
-          dayNight: 'INT'
+          dayNight: 'INT',
+          scriptNotes: ''
         };
       } else {
         return {
           ...shot,
+          lens: '',
+          framerate: '24',
           roll: 'A',
-          memoryCard: '',
           size: '',
           movement: '',
-          lens: '',
           angle: '',
+          memoryCard: '',
           techNotes: ''
         };
       }
@@ -563,21 +895,24 @@ export const EditorProvider = ({ children }: { children: ReactNode }) => {
         return {
           ...shot,
           location: '',
+          actors: '',
+          fov: '',
+          duration: '',
           content: '',
           actorAction: '',
           dayNight: 'INT',
-          sceneNotes: '',
           scriptNotes: ''
         };
       } else {
         return {
           ...shot,
+          lens: '',
+          framerate: '24',
           roll: 'A',
-          memoryCard: '',
           size: '',
           movement: '',
-          lens: '',
           angle: '',
+          memoryCard: '',
           techNotes: ''
         };
       }
@@ -597,14 +932,15 @@ export const EditorProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <EditorContext.Provider value={{ 
-      project, 
-      updateProjectName, 
+    <EditorContext.Provider value={{
+      project,
+      updateProjectName,
       updateLogline,
       updateAuthor,
       updateScriptBlocks,
       addBlock,
       removeBlock,
+      removeScene,
       updateBlock,
       addCharacter,
       removeCharacter,
@@ -613,7 +949,7 @@ export const EditorProvider = ({ children }: { children: ReactNode }) => {
       insertElement,
       shotlist: project.shotlist,
       setShotlist,
-      updateShotlist: setShotlist,
+      updateShot,
       activeTab,
       setActiveTab,
       shotlistView,
@@ -631,6 +967,8 @@ export const EditorProvider = ({ children }: { children: ReactNode }) => {
       updateLocation,
       undo,
       redo,
+      moveBlockUp,
+      moveBlockDown,
       addShot,
       addScene,
       updateShotlistProjectName,
@@ -643,12 +981,24 @@ export const EditorProvider = ({ children }: { children: ReactNode }) => {
       clearShotlistData,
       resetShotlistContentOnly,
       resetFullShotlist,
+      removeShot,
+      insertShot,
+      clearShotRow,
+      addLens,
+      removeLens,
+      clearLenses,
+      addShotlistLocation,
+      removeShotlistLocation,
+      clearShotlistLocations,
+      addShotlistActor,
+      removeShotlistActor,
+      clearShotlistActors,
       importFullProject: (data: Partial<ProjectData>) => {
         setProject(prev => ({
           ...prev,
-          id: data.id || Math.random().toString(36).substr(2, 9), 
-          projectName: data.projectName || data.title || 'Kịch bản mới',
-          title: data.title || data.projectName || 'Kịch bản mới',
+          id: data.id || Math.random().toString(36).substr(2, 9),
+          projectName: data.projectName ?? data.title ?? '',
+          title: data.title ?? data.projectName ?? '',
           author: data.author || '',
           logline: data.logline || '',
           scriptBlocks: data.scriptBlocks || DEFAULT_BLOCKS,
@@ -662,14 +1012,69 @@ export const EditorProvider = ({ children }: { children: ReactNode }) => {
         }));
         setActiveBlockIndex(0);
         setSelectedIndices([0]);
-        setHistory([]); // Clear history for new project
-        setRedoStack([]);
+        setScriptHistory([]); // Clear history for new project
+        setScriptRedoStack([]);
+        setShotlistHistory([]);
+        setShotlistRedoStack([]);
       },
       importShotlist: (shotlist: Shot[]) => {
         setProject(prev => ({
           ...prev,
           shotlist
         }));
+      },
+      scanCharacters: () => {
+        const scriptCharacters = new Set<string>();
+        project.scriptBlocks.forEach(block => {
+          if (block.type === 'character' && block.content) {
+            scriptCharacters.add(block.content.trim().toUpperCase());
+          }
+        });
+
+        setProject(prev => {
+          const newChars = [...prev.characters];
+          scriptCharacters.forEach(name => {
+            if (!newChars.find(c => c.name === name)) {
+              newChars.push({
+                id: Math.random().toString(36).substr(2, 9),
+                name,
+                age: '',
+                frequency: 0
+              });
+            }
+          });
+          return { ...prev, characters: newChars };
+        });
+      },
+      scanLocations: () => {
+        const scriptLocations = new Set<string>();
+        project.scriptBlocks.forEach(block => {
+          if (block.type === 'scene' && block.content) {
+            // Regex to extract text STRICTLY after INT. or EXT.
+            // Handles cases like "INT. ROOM - DAY" or "1. INT. ROOM"
+            const match = block.content.match(/(?:INT|EXT|I\/E)\.?\s*([^-\n\r]+)/i);
+            if (match && match[1]) {
+              let loc = match[1].trim();
+              // Remove time part if it exists (split by -)
+              if (loc.includes(' - ')) {
+                loc = loc.split(' - ')[0].trim();
+              }
+              if (loc && !['INT', 'EXT', 'I/E'].includes(loc.toUpperCase())) {
+                scriptLocations.add(loc.toUpperCase());
+              }
+            }
+          }
+        });
+
+        setProject(prev => {
+          const newLocs = [...prev.locations];
+          scriptLocations.forEach(name => {
+            if (!newLocs.includes(name)) {
+              newLocs.push(name);
+            }
+          });
+          return { ...prev, locations: newLocs };
+        });
       }
     }}>
       {children}

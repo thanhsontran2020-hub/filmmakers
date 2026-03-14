@@ -3,7 +3,7 @@ declare const google: any;
 import { Packer } from 'docx';
 import { generateScriptDocument, generateShotlistExcelBlob } from './exportUtils';
 
-const CLIENT_ID = '978277932198-rmg92ds0aj734021hp9so97uvt5et3vo.apps.googleusercontent.com';
+const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 const DISCOVERY_DOCS = [
   "https://www.googleapis.com/discovery/v1/apis/docs/v1/rest",
   "https://www.googleapis.com/discovery/v1/apis/sheets/v4/rest",
@@ -117,6 +117,13 @@ export class GoogleWorkspaceService {
         `https://www.googleapis.com/drive/v3/files?q=name='Filmmakers.vn' and mimeType='application/vnd.google-apps.folder' and trashed=false`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
+      if (!searchResp.ok) {
+        const errorData = await searchResp.json();
+        console.error("Search app folder failed:", errorData);
+        if (searchResp.status === 403) {
+           return null; // Stop here if we don't have permission to even search
+        }
+      }
       const searchResult = await searchResp.json();
 
       if (searchResult.files && searchResult.files.length > 0) {
@@ -136,6 +143,13 @@ export class GoogleWorkspaceService {
           mimeType: 'application/vnd.google-apps.folder'
         })
       });
+      
+      if (!createResp.ok) {
+        const errorData = await createResp.json();
+        console.error("Create app folder failed:", errorData);
+        return null;
+      }
+
       const createResult = await createResp.json();
       this.appFolderId = createResult.id;
       return this.appFolderId;
@@ -289,9 +303,15 @@ export class GoogleWorkspaceService {
       const result = await response.json();
       
       if (!response.ok) {
-        if (response.status === 401 || response.status === 403) {
+        if (response.status === 401) {
           localStorage.removeItem('google_access_token');
           return { success: false, message: "Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại." };
+        }
+        if (response.status === 403) {
+          return { 
+            success: false, 
+            message: "Lỗi 403: Không có quyền truy cập Drive. Có thể do ứng dụng đang ở chế độ 'Thử nghiệm' và email của bạn chưa được cấp phép (Test Users), hoặc API Drive chưa được bật." 
+          };
         }
         console.error("Save Project API Error:", result);
         return { success: false, error: result, message: result.error?.message || "Lỗi khi lưu vào Drive" };
@@ -377,9 +397,15 @@ export class GoogleWorkspaceService {
       const result = await response.json();
 
       if (!response.ok) {
-        if (response.status === 401 || response.status === 403) {
+        if (response.status === 401) {
           localStorage.removeItem('google_access_token');
           return { success: false, message: "Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại." };
+        }
+        if (response.status === 403) {
+          return { 
+            success: false, 
+            message: "Lỗi 403: Không có quyền đồng bộ Kịch bản. Vui lòng kiểm tra quyền truy cập hoặc cấu hình Test Users trong Google Cloud." 
+          };
         }
         console.error("Sync Script API Error:", result);
         return { success: false, error: result, message: result.error?.message || "Lỗi khi đồng bộ Kịch bản" };
@@ -418,7 +444,7 @@ export class GoogleWorkspaceService {
 
     try {
       // 1. Tạo file XLSX Blob từ dữ liệu shotlist
-      const xlsxBlob = generateShotlistExcelBlob(projectData.shotlist || []);
+      const xlsxBlob = await generateShotlistExcelBlob(projectData.shotlist || []);
 
       const projectId = (projectData as any).id || 'default';
       let fileId = localStorage.getItem(`google_shotlist_id_${projectId}`) || 
@@ -503,6 +529,12 @@ export class GoogleWorkspaceService {
     this.currentUser = null;
     localStorage.removeItem('google_access_token');
     localStorage.removeItem('google_token_expires_at');
+    // Clear all google file/doc IDs to avoid permission issues on re-login
+    Object.keys(localStorage).forEach(key => {
+      if (key.startsWith('google_file_id_') || key.startsWith('google_doc_id_') || key.startsWith('google_shotlist_id_')) {
+        localStorage.removeItem(key);
+      }
+    });
     window.location.reload();
   }
 }

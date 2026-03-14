@@ -13,7 +13,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onLogin }) => {
 
   return (
     <div className="modal-overlay login-screen">
-      <div className="login-card glass-card animate-fade-in">
+      <div className="login-card glass-card">
         <div className="login-header">
           <div className="logo-badge">
             <Sparkles size={32} className="icon-accent" />

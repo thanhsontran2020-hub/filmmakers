@@ -1,0 +1,140 @@
+/* Clean Up Modal - Minimal Static Version (No Animations) */
+
+.modal-overlay {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    background: rgba(0, 0, 0, 0.45) !important;
+    backdrop-filter: blur(12px) !important;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    z-index: 2000 !important;
+    padding: 20px;
+}
+
+.clean-up-modal-horizontal {
+    max-width: 820px !important;
+    width: 92vw;
+    background: var(--bg-sidebar);
+    border: 1px solid var(--glass-border);
+    border-radius: 24px;
+    box-shadow: 0 40px 80px rgba(0, 0, 0, 0.4) !important;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    /* Remove all transitions */
+    transition: none !important;
+    max-height: 90vh;
+}
+
+.cleanup-horizontal-body {
+    padding: 24px 32px !important;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.cleanup-intro {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+}
+
+.warning-box-compact {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    background: rgba(239, 68, 68, 0.08);
+    border-radius: 10px;
+    border: 1px solid rgba(239, 68, 68, 0.15);
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    line-height: 1.4;
+    flex: 1;
+}
+
+.success-toast {
+    padding: 6px 12px;
+    background: #10b981;
+    color: white;
+    border-radius: 8px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.cleanup-grid-horizontal {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+}
+
+.cleanup-column-v2 {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 20px;
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 16px;
+    height: 100%; /* Ensure all columns have same height */
+}
+
+.column-header {
+    display: flex;
+    align-items: flex-start; /* Align icon to top of text */
+    gap: 10px;
+    color: var(--accent);
+    min-height: 2.8rem; /* Ensure headers have consistent baseline */
+}
+
+.column-header h3 {
+    font-size: 0.9rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    margin: 0;
+    line-height: 1.2;
+}
+
+.cleanup-column-v2 p {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    line-height: 1.4;
+    margin: 0;
+    flex-grow: 1; /* Allow text to take up space and push button */
+}
+
+.action-reset-btn {
+    margin-top: auto; /* Push to bottom of column */
+    padding: 12px;
+    background: #ef4444;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-weight: 700;
+    font-size: 0.8rem;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+.action-reset-btn:hover {
+    background: #dc2626;
+}
+
+/* Hide footer that shouldn't exist */
+.modal-footer-minimal {
+    display: none !important;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+    .cleanup-grid-horizontal {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+}

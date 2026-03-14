@@ -5,12 +5,13 @@ import { SidebarRight } from './components/SidebarRight';
 import MainEditor from './components/MainEditor';
 import { ResetModal } from './components/ResetModal';
 import { DownloadModal } from './components/DownloadModal';
-import { QuickAddModal } from './components/QuickAddModal';
 import ImportConfirmModal from './components/ImportConfirmModal';
 import { googleService } from './lib/google-workspace';
 import { DrivePickerModal } from './components/DrivePickerModal';
+import { CleanUpModal } from './components/CleanUpModal';
 import * as mammoth from 'mammoth';
 import * as XLSX from 'xlsx';
+import { formatImportSceneHeading } from './lib/formatUtils';
 import './App.css';
 
 function AppContent() {
@@ -18,15 +19,48 @@ function AppContent() {
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     return (localStorage.getItem('theme') as 'light' | 'dark') || 'light';
   });
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarLeftOpen, setSidebarLeftOpen] = useState(() => window.innerWidth > 1024);
+  const [sidebarRightOpen, setSidebarRightOpen] = useState(() => window.innerWidth > 1400);
   const [showResetModal, setShowResetModal] = useState(false);
   const [showDownloadModal, setShowDownloadModal] = useState(false);
   const [showImportConfirm, setShowImportConfirm] = useState(false);
-  const [quickAddType, setQuickAddType] = useState<'character' | 'location' | null>(null);
+  const [showCleanUpModal, setShowCleanUpModal] = useState(false);
+  const [cleanUpType, setCleanUpType] = useState<'script' | 'shotlist'>('script');
   const [scriptSyncStatus, setScriptSyncStatus] = useState<'idle' | 'syncing' | 'synced' | 'error'>('idle');
   const [shotlistSyncStatus, setShotlistSyncStatus] = useState<'idle' | 'syncing' | 'synced' | 'error'>('idle');
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 1024);
   const [showDrivePicker, setShowDrivePicker] = useState(false);
+
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth <= 1024;
+      setIsMobile(mobile);
+      if (mobile) {
+        // Auto-close sidebars on mobile if window shrinks
+        setSidebarLeftOpen(false);
+        setSidebarRightOpen(false);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const toggleLeftSidebar = () => {
+    const nextState = !sidebarLeftOpen;
+    setSidebarLeftOpen(nextState);
+    if (isMobile && nextState) {
+      setSidebarRightOpen(false);
+    }
+  };
+
+  const toggleRightSidebar = () => {
+    const nextState = !sidebarRightOpen;
+    setSidebarRightOpen(nextState);
+    if (isMobile && nextState) {
+      setSidebarLeftOpen(false);
+    }
+  };
   const fileInputRef = useRef<HTMLInputElement>(null!);
   const { importFullProject, project, activeTab, importShotlist, updateShotlistProjectName } = useEditor();
   const projectRef = useRef(project);
@@ -36,13 +70,12 @@ function AppContent() {
     projectRef.current = project;
   }, [project]);
 
-  // CHUYỂN TAB: Đồng bộ phần cũ một lần, bắt đầu auto-sync phần mới
   useEffect(() => {
     const prevTab = activeTabRef.current;
     if (prevTab !== activeTab) {
       if (prevTab === 'script') handleSyncScript(false, true);
       else if (prevTab === 'shotlist') handleSyncShotlist(false, true);
-      
+
       activeTabRef.current = activeTab;
     }
   }, [activeTab]);
@@ -69,7 +102,7 @@ function AppContent() {
 
   const handleSyncScript = async (isManual = false, isOneShot = false) => {
     if (scriptSyncTimerRef.current) clearTimeout(scriptSyncTimerRef.current);
-    
+
     const token = googleService.getAccessToken();
     if (!token) {
       if (isManual) {
@@ -83,10 +116,9 @@ function AppContent() {
       return;
     }
 
-    // KIỂM TRA TRỐNG: Nếu chỉ có 1 block và nội dung trống thì không đồng bộ
     const blocks = projectRef.current.scriptBlocks || [];
     const isScriptEmpty = blocks.length === 0 || (blocks.length === 1 && !blocks[0].content.trim());
-    
+
     if (isScriptEmpty) {
       if (!isOneShot && activeTabRef.current === 'script') {
         scriptSyncTimerRef.current = setTimeout(() => handleSyncScript(false), 120000);
@@ -99,13 +131,12 @@ function AppContent() {
 
     if (result.success) {
       setScriptSyncStatus('synced');
-      setTimeout(() => setScriptSyncStatus('idle'), 5000); 
+      setTimeout(() => setScriptSyncStatus('idle'), 5000);
     } else {
       setScriptSyncStatus('error');
       setTimeout(() => setScriptSyncStatus('idle'), 10000);
     }
 
-    // Tự động đặt lịch đồng bộ tiếp theo mỗi 2 phút (chỉ khi không phải one-shot)
     if (!isOneShot && activeTabRef.current === 'script') {
       scriptSyncTimerRef.current = setTimeout(() => handleSyncScript(false), 120000);
     }
@@ -113,7 +144,7 @@ function AppContent() {
 
   const handleSyncShotlist = async (isManual = false, isOneShot = false) => {
     if (shotlistSyncTimerRef.current) clearTimeout(shotlistSyncTimerRef.current);
-    
+
     const token = googleService.getAccessToken();
     if (!token) {
       if (isManual) {
@@ -127,7 +158,6 @@ function AppContent() {
       return;
     }
 
-    // KIỂM TRA TRỐNG: Nếu shotlist không có hàng nào thì không đồng bộ
     const isShotlistEmpty = (projectRef.current.shotlist || []).length === 0;
 
     if (isShotlistEmpty) {
@@ -142,30 +172,27 @@ function AppContent() {
 
     if (result.success) {
       setShotlistSyncStatus('synced');
-      setTimeout(() => setShotlistSyncStatus('idle'), 5000); 
+      setTimeout(() => setShotlistSyncStatus('idle'), 5000);
     } else {
       setShotlistSyncStatus('error');
       setTimeout(() => setShotlistSyncStatus('idle'), 10000);
     }
 
-    // Tự động đặt lịch đồng bộ tiếp theo mỗi 2 phút (chỉ khi không phải one-shot)
     if (!isOneShot && activeTabRef.current === 'shotlist') {
       shotlistSyncTimerRef.current = setTimeout(() => handleSyncShotlist(false), 120000);
     }
   };
 
-  // Auto-save Timers
   const scriptSyncTimerRef = useRef<NodeJS.Timeout | null>(null);
   const shotlistSyncTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    // Khởi động chu kỳ đồng bộ 2 phút
     if (activeTab === 'script') {
       handleSyncScript(false);
     } else {
       handleSyncShotlist(false);
     }
-    
+
     return () => {
       if (scriptSyncTimerRef.current) clearTimeout(scriptSyncTimerRef.current);
       if (shotlistSyncTimerRef.current) clearTimeout(shotlistSyncTimerRef.current);
@@ -192,20 +219,16 @@ function AppContent() {
 
       const newBlocks: any[] = [];
       let lastType: BlockType = 'action';
-      const detectedChars = new Set<string>();
-      const detectedLocs = new Set<string>();
 
       let detectedProjectName = '';
       let detectedAuthor = '';
       const processedTags = new Set<number>();
 
-      // Logic nhận diện Title Page (Tên kịch bản & Đạo diễn/Tác giả)
       for (let i = 0; i < Math.min(10, pTags.length); i++) {
         const text = pTags[i].textContent?.trim() || '';
         const lowerText = text.toLowerCase();
-        
+
         if (lowerText === 'viết bởi' || lowerText === 'written by') {
-          // Paragraph trước đó là Tên kịch bản (nếu chưa có hoặc là "Kịch bản mới")
           if (i > 0) {
             const potentialTitle = pTags[i - 1].textContent?.trim();
             if (potentialTitle) {
@@ -213,7 +236,6 @@ function AppContent() {
               processedTags.add(i - 1);
             }
           }
-          // Paragraph sau đó là Tác giả
           if (i < pTags.length - 1) {
             const potentialAuthor = pTags[i + 1].textContent?.trim();
             if (potentialAuthor) {
@@ -222,7 +244,7 @@ function AppContent() {
             }
           }
           processedTags.add(i);
-          break; // Đã tìm thấy title page
+          break;
         }
       }
 
@@ -233,48 +255,59 @@ function AppContent() {
         if (text.length === 0) return;
 
         let type: BlockType = 'action';
-        const isHeading = /^(INT\.|EXT\.|CẢNH|SCENE|HỒI)/i.test(text);
-        const isCaps = text === text.toUpperCase() && text.length < 55 && !isHeading && text.length > 1;
+        let content = text;
+        const upperText = text.toUpperCase();
+        
+        // 1. Scene Headings (Catch INT, EXT, I/E with or without dots, support leading numbers)
+        const isHeading = /^([0-9]+[.\-\s\)]*\s*)?(INT|EXT|I\/E|CẢNH|PHÂN CẢNH|SCENE|HỒI|TAP|TẬP)(\.|\s|\/)/i.test(text);
+        
+        // 2. Transitions (Usually all caps ends with :)
+        const isTransition = upperText === text && text.endsWith(':') && text.length < 40;
+        
+        // 3. Characters (All caps, no terminal punctuation, usually short)
+        const hasTerminalPunctuation = /[.!?]$/.test(text);
+        const isCaps = upperText === text && text.length < 50 && !isHeading && !isTransition && !hasTerminalPunctuation;
+        
+        // 4. Parentheticals
         const isParen = text.startsWith('(') && text.endsWith(')');
 
         if (isHeading) {
           type = 'scene';
-          let loc = text.replace(/^(INT\.|EXT\.|CẢNH|SCENE|HỒI)/i, '').trim();
-          if (loc.includes('-')) loc = loc.split('-')[0].trim();
-          if (loc) detectedLocs.add(loc.toUpperCase());
-        }
-        else if (isCaps) {
+          content = formatImportSceneHeading(text);
+        } else if (isTransition) {
+          type = 'transition';
+        } else if (isCaps) {
+          // Heuristic: If it's all caps but follows a scene heading, it's very likely a Character
+          // unless it's extremely long (which usually implies Action accidentally caps-locked)
           type = 'character';
-          detectedChars.add(text.toUpperCase());
+        } else if (isParen) {
+          type = 'parenthetical';
+        } else if (lastType === 'character' || lastType === 'parenthetical') {
+          // Following a character or parenthetical is almost always dialogue
+          type = 'dialogue';
+        } else if (lastType === 'dialogue' && text.length < 400) {
+          // If previous was dialogue, and this isn't caps/paren/heading, it's likely continued dialogue or action
+          // We'll lean towards action if it ends with punctuation
+          type = hasTerminalPunctuation ? 'action' : 'dialogue';
+        } else {
+          type = 'action';
         }
-        else if (isParen) type = 'parenthetical';
-        else if ((lastType === 'character' || lastType === 'parenthetical') && text.length < 400) type = 'dialogue';
-        else type = 'action';
 
         newBlocks.push({
           id: Math.random().toString(36).substr(2, 9),
           type,
-          content: text
+          content: content
         });
         lastType = type;
       });
-
-      if (newBlocks.length > 0) {
-        const finalCharacters = Array.from(detectedChars).map(name => ({
-          id: Math.random().toString(36).substr(2, 9),
-          name,
-          age: '',
-          frequency: 0
-        }));
 
         importFullProject({
           projectName: detectedProjectName || '',
           author: detectedAuthor,
           scriptBlocks: newBlocks,
-          characters: finalCharacters,
-          locations: Array.from(detectedLocs)
+          characters: [],
+          locations: []
         });
-      }
     } catch (err) {
       console.error('Lỗi khi nhập file Word:', err);
       alert('Không thể xử lý tệp kịch bản này. Vui lòng kiểm tra định dạng.');
@@ -285,8 +318,6 @@ function AppContent() {
     try {
       const arrayBuffer = await blob.arrayBuffer();
       const workbook = XLSX.read(arrayBuffer);
-      
-      // Tìm sheet Đạo Diễn hoặc Quay Phim
       const dirSheet = workbook.Sheets["Đạo Diễn"];
       const dpSheet = workbook.Sheets["Quay Phim"];
 
@@ -295,11 +326,9 @@ function AppContent() {
         return;
       }
 
-      // Ưu tiên sheet Đạo Diễn để lấy nhiều thông tin nhất
       const sheet = dirSheet || dpSheet;
       const rawData: any[] = XLSX.utils.sheet_to_json(sheet);
-      
-      // Mapping từ label tiếng Việt sang key hệ thống
+
       const labelMap: Record<string, string> = {
         'Scene': 'scene', 'Shot': 'shot', 'I/E': 'dayNight', 'Địa điểm': 'location',
         'Nội dung': 'content', 'Diễn xuất': 'actorAction', 'Ghi chú ĐD': 'sceneNotes', 'Thư ký': 'scriptNotes',
@@ -370,38 +399,66 @@ function AppContent() {
   }
 
   return (
-    <div className={`app-container ${theme}-theme ${sidebarOpen ? 'sidebar-visible' : 'sidebar-collapsed'}`}>
-      <SidebarLeft
-        isOpen={sidebarOpen}
-        setOpen={setSidebarOpen}
-        theme={theme}
-        setTheme={setTheme}
-        resetTrigger={() => setShowResetModal(true)}
-        onQuickAdd={(type: 'character' | 'location') => setQuickAddType(type)}
-      />
-      <MainEditor />
-      <SidebarRight 
-        isOpen={sidebarOpen} 
-        onOpenDownload={() => setShowDownloadModal(true)} 
-        onOpenImport={() => setShowImportConfirm(true)}
-        onSyncScript={() => handleSyncScript(true)}
-        onSyncShotlist={() => handleSyncShotlist(true)}
-        onReset={() => setShowResetModal(true)}
-        scriptSyncStatus={scriptSyncStatus}
-        shotlistSyncStatus={shotlistSyncStatus}
-        user={currentUser}
-        onLogout={handleLogout}
-        onLogin={() => {
-          if (activeTab === 'script') handleSyncScript(true);
-          else handleSyncShotlist(true);
-        }}
-      />
+    <div className={`app-container ${theme}-theme ${sidebarLeftOpen ? 'sidebar-left-visible' : 'sidebar-left-collapsed'} ${sidebarRightOpen ? 'sidebar-right-visible' : 'sidebar-right-collapsed'} ${isMobile ? 'is-mobile' : ''}`}>
+      {/* WordPress-style Header */}
+      <header className="app-header no-print">
+        <div className="header-left">
+          <button className="icon-btn hamburger-btn" onClick={toggleLeftSidebar} title="Bật/Tắt công cụ">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+          </button>
+          <div className="project-title-container">
+            <span className="logo-text">FILMMAKERS.VN</span>
+            <span className="project-name-display">bởi {project.author || 'Trần Thanh Sơn'}</span>
+          </div>
+        </div>
+        
+        <div className="header-right">
+          <div className={`sync-status-mini ${scriptSyncStatus} ${!currentUser ? 'unauthenticated' : ''}`}></div>
+          <button className="icon-btn gear-btn" onClick={toggleRightSidebar} title="Cài đặt hệ thống">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+          </button>
+        </div>
+      </header>
+
+      <div className="main-layout-area">
+        <SidebarLeft
+          isOpen={sidebarLeftOpen}
+          setOpen={setSidebarLeftOpen}
+          openCleanUp={(type: 'script' | 'shotlist') => {
+            setCleanUpType(type);
+            setShowCleanUpModal(true);
+          }}
+        />
+        <MainEditor />
+        <SidebarRight
+          isOpen={sidebarRightOpen}
+          onOpenDownload={() => setShowDownloadModal(true)}
+          onOpenImport={() => setShowImportConfirm(true)}
+          onSyncScript={() => handleSyncScript(true)}
+          onSyncShotlist={() => handleSyncShotlist(true)}
+          onReset={() => setShowResetModal(true)}
+          scriptSyncStatus={scriptSyncStatus}
+          shotlistSyncStatus={shotlistSyncStatus}
+          user={currentUser}
+          onLogout={handleLogout}
+          onLogin={() => {
+            if (activeTab === 'script') handleSyncScript(true);
+            else handleSyncShotlist(true);
+          }}
+          setOpen={setSidebarRightOpen}
+          theme={theme}
+          setTheme={setTheme}
+        />
+      </div>
+
+      {/* Mobile Sidebar Tabs - REMOVED, using Header instead */}
+
 
       <ResetModal isOpen={showResetModal} onClose={() => setShowResetModal(false)} />
       <DownloadModal isOpen={showDownloadModal} onClose={() => setShowDownloadModal(false)} />
-      <ImportConfirmModal 
-        isOpen={showImportConfirm} 
-        onClose={() => setShowImportConfirm(false)} 
+      <ImportConfirmModal
+        isOpen={showImportConfirm}
+        onClose={() => setShowImportConfirm(false)}
         onConfirmLocal={() => fileInputRef.current?.click()}
         onConfirmGoogle={() => {
           if (currentUser) {
@@ -419,14 +476,19 @@ function AppContent() {
         onClose={() => setShowDrivePicker(false)}
         onSelect={handleDriveFileSelect}
       />
-      <QuickAddModal type={quickAddType} onClose={() => setQuickAddType(null)} />
-      
-      <input 
-        type="file" 
-        ref={fileInputRef} 
-        accept=".docx,.xlsx" 
-        style={{ display: 'none' }} 
-        onChange={handleImportWord} 
+
+      <CleanUpModal 
+        isOpen={showCleanUpModal} 
+        onClose={() => setShowCleanUpModal(false)} 
+        type={cleanUpType} 
+      />
+
+      <input
+        type="file"
+        ref={fileInputRef}
+        accept=".docx,.xlsx"
+        style={{ display: 'none' }}
+        onChange={handleImportWord}
       />
     </div>
   );

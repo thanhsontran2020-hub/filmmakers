@@ -30,8 +30,8 @@ export const DownloadModal: React.FC<DownloadModalProps> = ({ isOpen, onClose })
           <section className="export-section">
             <div className="section-info">
               <FileText size={24} />
-              <h3>Kịch bản văn học</h3>
-              <p>Xuất nội dung kịch bản văn học với định dạng chuẩn.</p>
+              <h3>Kịch bản</h3>
+              <p>Xuất nội dung kịch bản với định dạng chuẩn.</p>
             </div>
             <div className="export-options">
               <button 
@@ -83,8 +83,8 @@ export const DownloadModal: React.FC<DownloadModalProps> = ({ isOpen, onClose })
                 <h4>Xuất Excel (.xlsx)</h4>
                 <button 
                   className="export-btn excel" 
-                  onClick={() => {
-                    exportShotlistToExcel(project.shotlistProjectName || project.projectName, project.shotlistDirector || project.author, shotlist);
+                  onClick={async () => {
+                    await exportShotlistToExcel(project.shotlistProjectName || project.projectName, project.shotlistDirector || project.author, project.shotlistDate, shotlist);
                     onClose();
                   }}
                 >

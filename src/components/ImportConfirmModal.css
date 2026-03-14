@@ -1,0 +1,58 @@
+/* ImportConfirmModal - Static Styles (Strictly No Hover) */
+
+.modal-content {
+    transition: none !important;
+}
+
+/* Base button styles to ensure they stay the same on hover */
+.modal-btn {
+    transition: none !important;
+    box-shadow: none !important;
+    transform: none !important;
+}
+
+/* RED BUTTON (Local upload) */
+.modal-btn:hover {
+    background-color: var(--accent) !important; /* Keep original red */
+    transform: none !important;
+    box-shadow: none !important;
+    border: none !important;
+}
+
+/* WHITE/GLASS BUTTON (Google Drive) */
+.modal-btn.secondary {
+    box-shadow: none !important;
+    border: 1px solid var(--glass-border) !important;
+    background-color: var(--glass-bg) !important;
+}
+
+.modal-btn.secondary:hover {
+    background-color: var(--glass-bg) !important; /* Keep glass bg */
+    border-color: var(--glass-border) !important; /* Keep thin border */
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+/* If logged in (Success state) */
+.modal-btn.success {
+    background-color: #10b981 !important; /* Emerald */
+    box-shadow: none !important;
+}
+
+.modal-btn.success:hover {
+    background-color: #10b981 !important;
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+/* Close button */
+.modal-close-btn {
+    transition: none !important;
+}
+
+.modal-close-btn:hover {
+    background: var(--glass-bg) !important;
+    color: var(--text-secondary) !important;
+    border-color: var(--glass-border) !important;
+    transform: none !important;
+}

@@ -7,7 +7,9 @@ import {
   FolderPlus,
   LogIn,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Sun,
+  Moon
 } from 'lucide-react';
 
 interface SidebarRightProps {
@@ -22,6 +24,9 @@ interface SidebarRightProps {
   user?: any;
   onLogout: () => void;
   onLogin: () => void;
+  setOpen: (v: boolean) => void;
+  theme: 'light' | 'dark';
+  setTheme: (t: 'light' | 'dark') => void;
 }
 
 export const SidebarRight: React.FC<SidebarRightProps> = ({ 
@@ -35,7 +40,10 @@ export const SidebarRight: React.FC<SidebarRightProps> = ({
   shotlistSyncStatus,
   user,
   onLogout,
-  onLogin
+  onLogin,
+  setOpen,
+  theme,
+  setTheme
 }) => {
   const [showLoginConfirm, setShowLoginConfirm] = React.useState(false);
 
@@ -51,6 +59,21 @@ export const SidebarRight: React.FC<SidebarRightProps> = ({
   return (
     <>
     <aside className={`sidebar-right ${!isOpen ? 'collapsed' : ''}`}>
+      <div className="sidebar-header right-header">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button
+            className="sidebar-mobile-close-btn no-print"
+            onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+            title={theme === 'light' ? 'Chế độ tối' : 'Chế độ sáng'}
+            style={{ display: 'flex', color: 'var(--text-secondary)' }}
+          >
+            {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
+          </button>
+        </div>
+        <button className="sidebar-mobile-close-btn no-print" onClick={() => setOpen(false)}>
+          <span>✕</span>
+        </button>
+      </div>
       <div className="sidebar-content">
         <div className="section-title" style={{ marginBottom: '16px' }}>{isOpen ? 'ĐỒNG BỘ GOOGLE' : '...'}</div>
         

@@ -1,6 +1,7 @@
 import React from 'react';
 import { AlertTriangle, X, Upload, Info } from 'lucide-react';
 import './ResetModal.css';
+import './ImportConfirmModal.css';
 
 interface ImportConfirmModalProps {
   isOpen: boolean;
